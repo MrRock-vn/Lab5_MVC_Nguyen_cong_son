@@ -1,83 +1,138 @@
 <?php
 namespace App\Models;
 
+use PDO;
+
 /**
  * CLASS: Product
- * MỤC ĐÍCH: Xử lý dữ liệu liên quan đến sản phẩm
+ * MỤC ĐÍCH: Xử lý tất cả nghiệp vụ liên quan đến sản phẩm
  */
 class Product extends BaseModel 
 {
+    protected $table = 'products'; // Tên bảng trong database
+    
     /**
      * Lấy tất cả sản phẩm
-     * @return array Mảng chứa danh sách sản phẩm
+     * @return array
      */
-    public function getAllProducts() 
+    public function all() 
     {
-        $sql = "SELECT * FROM products ORDER BY created_at DESC";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute();
+        $sql = "SELECT * FROM {$this->table} ORDER BY created_at DESC";
+        $stmt = $this->pdo->query($sql);
         return $stmt->fetchAll();
     }
     
     /**
      * Lấy sản phẩm theo ID
-     * @param int $id ID của sản phẩm
-     * @return array|false Thông tin sản phẩm hoặc false nếu không tìm thấy
+     * @param int $id
+     * @return array|false
      */
-    public function getProductById($id) 
+    public function find($id) 
     {
-        $sql = "SELECT * FROM products WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
+        $sql = "SELECT * FROM {$this->table} WHERE id = ?";
+        $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
     
     /**
-     * Đếm tổng số sản phẩm
-     * @return int Số lượng sản phẩm
+     * Xóa sản phẩm theo ID
+     * @param int $id
+     * @return bool
      */
-    public function getTotalProducts() 
+    public function delete($id)
     {
-        $sql = "SELECT COUNT(*) as total FROM products";
-        $stmt = $this->conn->query($sql);
+        $sql = "DELETE FROM {$this->table} WHERE id = ?";
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([$id]);
+    }
+    
+    /**
+     * Thêm sản phẩm mới
+     * @param array $data
+     * @return bool
+     */
+    public function insert($data)
+    {
+        $sql = "INSERT INTO {$this->table} (name, price, description, category, stock, image) 
+                VALUES (:name, :price, :description, :category, :stock, :image)";
+        
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([
+            ':name' => $data['name'],
+            ':price' => $data['price'],
+            ':description' => $data['description'],
+            ':category' => $data['category'] ?? 'Other',
+            ':stock' => $data['stock'] ?? 0,
+            ':image' => $data['image'] ?? 'default.jpg'
+        ]);
+    }
+    
+    /**
+     * Cập nhật sản phẩm
+     * @param int $id
+     * @param array $data
+     * @return bool
+     */
+    public function update($id, $data)
+    {
+        $sql = "UPDATE {$this->table} 
+                SET name = :name, 
+                    price = :price, 
+                    description = :description,
+                    category = :category,
+                    stock = :stock,
+                    image = :image
+                WHERE id = :id";
+        
+        $stmt = $this->pdo->prepare($sql);
+        return $stmt->execute([
+            ':id' => $id,
+            ':name' => $data['name'],
+            ':price' => $data['price'],
+            ':description' => $data['description'],
+            ':category' => $data['category'],
+            ':stock' => $data['stock'],
+            ':image' => $data['image']
+        ]);
+    }
+    
+    /**
+     * Đếm tổng số sản phẩm
+     * @return int
+     */
+    public function count()
+    {
+        $sql = "SELECT COUNT(*) as total FROM {$this->table}";
+        $stmt = $this->pdo->query($sql);
         return $stmt->fetch()['total'];
     }
     
     /**
-     * Lấy sản phẩm theo danh mục
-     * @param string $category Tên danh mục
-     * @return array Mảng sản phẩm thuộc danh mục
-     */
-    public function getProductsByCategory($category)
-    {
-        $sql = "SELECT * FROM products WHERE category = ? ORDER BY name";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute([$category]);
-        return $stmt->fetchAll();
-    }
-    
-    /**
      * Tìm kiếm sản phẩm theo tên
-     * @param string $keyword Từ khóa tìm kiếm
-     * @return array Mảng sản phẩm khớp với từ khóa
+     * @param string $keyword
+     * @return array
      */
-    public function searchProducts($keyword)
+    public function search($keyword)
     {
-        $sql = "SELECT * FROM products WHERE name LIKE ? OR description LIKE ?";
-        $stmt = $this->conn->prepare($sql);
-        $searchTerm = "%{$keyword}%";
-        $stmt->execute([$searchTerm, $searchTerm]);
+        $sql = "SELECT * FROM {$this->table} 
+                WHERE name LIKE :keyword 
+                OR description LIKE :keyword
+                ORDER BY created_at DESC";
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':keyword' => "%{$keyword}%"]);
         return $stmt->fetchAll();
     }
     
     /**
-     * Lấy danh sách các danh mục
-     * @return array Mảng các danh mục duy nhất
+     * Lấy danh mục sản phẩm (không trùng)
+     * @return array
      */
     public function getCategories()
     {
-        $sql = "SELECT DISTINCT category FROM products ORDER BY category";
-        $stmt = $this->conn->query($sql);
+        $sql = "SELECT DISTINCT category FROM {$this->table} ORDER BY category";
+        $stmt = $this->pdo->query($sql);
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 }

@@ -6,14 +6,15 @@ use PDOException;
 
 /**
  * CLASS: BaseModel
- * MỤC ĐÍCH: Quản lý kết nối Database, các Model khác sẽ kế thừa class này
+ * MỤC ĐÍCH: Quản lý kết nối Database chung cho tất cả Model
  */
 class BaseModel 
 {
-    protected $conn; // Biến lưu kết nối PDO
+    protected $pdo; // Thuộc tính PDO - các Model con sẽ kế thừa
+    protected $table; // Tên bảng - Model con sẽ định nghĩa
     
     /**
-     * Constructor - Tự động kết nối DB khi tạo đối tượng
+     * Constructor - Tự động kết nối DB
      */
     public function __construct() 
     {
@@ -21,19 +22,17 @@ class BaseModel
     }
     
     /**
-     * Kết nối đến MySQL Database
+     * Kết nối Database
      */
     private function connect() 
     {
-        // Thông tin kết nối
         $host = 'localhost';
         $dbname = 'lab5_mvc';
         $username = 'root';
-        $password = ''; // Để trống nếu dùng XAMPP mặc định
+        $password = '';
         
         try {
-            // Tạo kết nối PDO
-            $this->conn = new PDO(
+            $this->pdo = new PDO(
                 "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
                 $username,
                 $password,
@@ -43,17 +42,15 @@ class BaseModel
                     PDO::ATTR_EMULATE_PREPARES => false
                 ]
             );
-            
         } catch (PDOException $e) {
-            // Nếu kết nối thất bại, hiển thị lỗi
             die("
-                <div style='background:#f8d7da; color:#721c24; padding:20px; border-radius:5px; margin:20px;'>
+                <div style='background:#f8d7da; color:#721c24; padding:20px; border-radius:5px; margin:20px; font-family:Arial;'>
                     <h2>❌ Lỗi kết nối Database!</h2>
-                    <p><strong>Thông báo:</strong> {$e->getMessage()}</p>
+                    <p><strong>Chi tiết:</strong> {$e->getMessage()}</p>
                     <hr>
                     <h3>Cách khắc phục:</h3>
                     <ol>
-                        <li>Kiểm tra XAMPP đã start MySQL chưa</li>
+                        <li>Bật MySQL trong XAMPP Control Panel</li>
                         <li>Kiểm tra tên database: <code>lab5_mvc</code></li>
                         <li>Kiểm tra username/password trong BaseModel.php</li>
                     </ol>
@@ -63,10 +60,31 @@ class BaseModel
     }
     
     /**
-     * Destructor - Đóng kết nối khi đối tượng bị hủy
+     * Hàm helper: Lấy tất cả bản ghi
+     */
+    public function all()
+    {
+        $sql = "SELECT * FROM {$this->table} ORDER BY id DESC";
+        $stmt = $this->pdo->query($sql);
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Hàm helper: Lấy 1 bản ghi theo ID
+     */
+    public function find($id)
+    {
+        $sql = "SELECT * FROM {$this->table} WHERE id = ?";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
+    
+    /**
+     * Destructor - Đóng kết nối
      */
     public function __destruct() 
     {
-        $this->conn = null;
+        $this->pdo = null;
     }
 }
